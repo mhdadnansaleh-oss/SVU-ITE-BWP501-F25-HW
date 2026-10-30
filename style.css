@@ -1,0 +1,81 @@
+/* تنسيقات نظام تسجيل الطلاب */
+
+body {
+    background-color: #f4f6f9;
+    font-family: Tahoma, Arial, sans-serif;
+    padding-bottom: 50px;
+    direction: rtl;
+    text-align: right;
+}
+
+.navbar {
+    margin-bottom: 30px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.main-box {
+    background-color: #ffffff;
+    padding: 25px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+.form-box {
+    max-width: 550px;
+    margin: 20px auto;
+    background: #fff;
+    padding: 30px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+.student-img {
+    width: 55px;
+    height: 55px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 1px solid #aaa;
+}
+
+.no-img-box {
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    background-color: #e9ecef;
+    display: inline-block;
+    text-align: center;
+    line-height: 55px;
+    color: #6c757d;
+    font-size: 11px;
+    border: 1px solid #ccc;
+}
+
+.error-msg {
+    color: red;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+.success-msg {
+    color: green;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+.footer-text {
+    text-align: center;
+    margin-top: 40px;
+    color: #777;
+    font-size: 14px;
+}
+
+.table th a {
+    color: #fff;
+    text-decoration: none;
+}
+
+.table th a:hover {
+    text-decoration: underline;
+}

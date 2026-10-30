@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام تسجيل الطلاب - الصفحة الرئيسية</title>
+    <!-- Bootstrap 5 RTL CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- شريط التنقل -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">نظام تسجيل الطلاب (BWP501)</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="index.html">الرئيسية</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="view_students.php">عرض الطلاب</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="add_student.php">إضافة طالب</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="login.html">تسجيل الدخول</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="register.html">إنشاء حساب</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- المحتوى الرئيسي -->
+    <div class="container">
+        <div class="main-box text-center py-5">
+            <h1 class="mb-3">مرحباً بكم في نظام تسجيل الطلاب</h1>
+            <p class="lead text-muted mb-4">
+                يتيح لك هذا النظام إدارة سجلات الطلاب بسهولة، حيث يمكنك إضافة طلاب جدد، عرض السجلات والبحث فيها، أو تعديل وحذف بيانات الطلاب.
+            </p>
+            <hr class="my-4">
+            <p>يرجى تسجيل الدخول أو إنشاء حساب جديد للوصول إلى لوحة إدارة الطلاب.</p>
+            
+            <div class="mt-4">
+                <a href="login.html" class="btn btn-primary btn-lg m-1">تسجيل الدخول</a>
+                <a href="register.html" class="btn btn-outline-primary btn-lg m-1">إنشاء حساب جديد</a>
+                <a href="view_students.php" class="btn btn-success btn-lg m-1">عرض الطلاب</a>
+                <a href="add_student.php" class="btn btn-secondary btn-lg m-1">إضافة طالب جديد</a>
+            </div>
+        </div>
+
+        <!-- بطاقات ميزات النظام -->
+        <div class="row mt-4">
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">حماية الحسابات والجلسات</h5>
+                        <p class="card-text">نظام تسجيل دخول وإنشاء حساب آمن باستخدام جلسات PHP وتشفير كلمات المرور.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">إدارة بيانات الطلاب (CRUD)</h5>
+                        <p class="card-text">إضافة وعرض وتعديل وحذف بيانات الطلاب مع إمكانية رفع صورة شخصية لكل طالب.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">البحث وتعدد الصفحات</h5>
+                        <p class="card-text">البحث السريع عن الطلاب بالاسم أو البريد أو الهاتف مع تقسيم النتائج والتحقق عبر AJAX.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-text">
+            <p>الجامعة الافتراضية السورية SVU - وظيفة مقرر BWP501</p>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

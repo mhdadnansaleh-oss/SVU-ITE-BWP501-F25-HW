@@ -1,149 +1,170 @@
 <?php
-declare(strict_types=1);
+session_start();
+include 'db.php';
 
-require_once __DIR__ . '/db.php';
-require_once __DIR__ . '/auth.php';
-require_once __DIR__ . '/layout.php';
-require_once __DIR__ . '/student_helpers.php';
-require_once __DIR__ . '/student_form.php';
-
-require_login();
-
-$state = list_state($_GET);          // search/sort/page, so we can return to the same list view
-$id    = positive_int($_GET['id'] ?? null);
-
-if ($id === null) {
-    set_flash('danger', 'معرّف الطالب غير صالح.');
-    redirect(list_url($state));
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.html?error=auth");
+    exit();
 }
 
-// Load the student
-try {
-    $stmt = $pdo->prepare('SELECT id, name, email, phone, address, profile_picture FROM students WHERE id = :id');
-    $stmt->execute([':id' => $id]);
-    $student = $stmt->fetch();
-} catch (PDOException $e) {
-    error_log('Load student error: ' . $e->getMessage());
-    set_flash('danger', 'تعذّر تحميل بيانات الطالب. يرجى المحاولة لاحقًا.');
-    redirect(list_url($state));
+// جلب رقم الطالب من الرابط أو من النموذج
+$id = 0;
+if (isset($_GET['id']) && is_numeric($_GET['id'])) {
+    $id = (int)$_GET['id'];
+} elseif (isset($_POST['id']) && is_numeric($_POST['id'])) {
+    $id = (int)$_POST['id'];
 }
 
-if (!$student) {
-    set_flash('danger', 'لم يتم العثور على الطالب المطلوب.');
-    redirect(list_url($state));
+if ($id <= 0) {
+    header("Location: view_students.php");
+    exit();
 }
 
-$errors = [];
-$values = [
-    'name'    => (string) $student['name'],
-    'email'   => (string) $student['email'],
-    'phone'   => (string) ($student['phone'] ?? ''),
-    'address' => (string) ($student['address'] ?? ''),
-];
+// جلب بيانات الطالب الحالية لعرضها في الحقول
+$res = mysqli_query($conn, "SELECT * FROM students WHERE id = $id");
+if (!$res || mysqli_num_rows($res) == 0) {
+    header("Location: view_students.php");
+    exit();
+}
+$student = mysqli_fetch_assoc($res);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+$err = "";
 
-    if (!csrf_verify($_POST['csrf_token'] ?? null)) {
-        $errors['general'] = 'انتهت صلاحية الجلسة أو أن الطلب غير صالح. يرجى تحديث الصفحة والمحاولة مرة أخرى.';
+// معالجة حفظ التعديلات
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $name = trim($_POST['name']);
+    $email = trim($_POST['email']);
+    $phone = trim($_POST['phone']);
+    $address = trim($_POST['address']);
+
+    if (empty($name) || empty($email) || empty($phone) || empty($address)) {
+        $err = "جميع الحقول مطلوبة ما عدا الصورة الشخصية.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $err = "صيغة البريد الإلكتروني غير صحيحة.";
     } else {
-        $values      = clean_student_input($_POST);
-        $newPicture  = null;
-        $saved       = false;
+        $profile_pic_path = $student['profile_picture']; // الاحتفاظ بالصورة القديمة افتراضياً
 
-        try {
-            $errors = validate_student_form($pdo, $values, $id);
-
-            $file    = (isset($_FILES['profile_picture']) && is_array($_FILES['profile_picture']))
-                ? $_FILES['profile_picture'] : null;
-            $hasFile = $file !== null && upload_present($file);
-
-            if ($hasFile) {
-                $pictureError = validate_profile_picture($file);
-                if ($pictureError !== null) {
-                    $errors['profile_picture'] = $pictureError;
-                }
+        // التحقق مما إذا قام المستخدم برفع صورة جديدة
+        if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] == 0) {
+            $upload_dir = "uploads/";
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
             }
 
-            if (!$errors) {
-                if ($hasFile) {
-                    $newPicture = save_profile_picture($file);
+            $file_name = basename($_FILES['profile_picture']['name']);
+            $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+            $allowed = array("jpg", "jpeg", "png", "gif");
+
+            if (in_array($file_ext, $allowed)) {
+                $new_file_name = time() . "_" . rand(100, 999) . "." . $file_ext;
+                $target_file = $upload_dir . $new_file_name;
+
+                if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $target_file)) {
+                    $profile_pic_path = $target_file;
+                } else {
+                    $err = "تعذر رفع الصورة الشخصية الجديدة.";
                 }
-
-                $update = $pdo->prepare(
-                    'UPDATE students
-                        SET name = :name, email = :email, phone = :phone,
-                            address = :address, profile_picture = :picture
-                      WHERE id = :id'
-                );
-                $update->execute([
-                    ':name'    => $values['name'],
-                    ':email'   => $values['email'],
-                    ':phone'   => $values['phone'],
-                    ':address' => $values['address'] !== '' ? $values['address'] : null,
-                    ':picture' => $newPicture ?? $student['profile_picture'],
-                    ':id'      => $id,
-                ]);
-                $saved = true;
-            }
-        } catch (PDOException $e) {
-            delete_profile_picture($newPicture);   // roll back the new file
-
-            if ((string) $e->getCode() === '23000') {
-                $errors['email'] = 'هذا البريد الإلكتروني مسجّل لطالب آخر.';
             } else {
-                error_log('Update student error: ' . $e->getMessage());
-                $errors['general'] = 'حدث خطأ غير متوقع أثناء تحديث بيانات الطالب. يرجى المحاولة لاحقًا.';
+                $err = "يسمح فقط برفع الصور من نوع JPG, JPEG, PNG, GIF.";
             }
-        } catch (RuntimeException $e) {
-            error_log('Upload error: ' . $e->getMessage());
-            $errors['profile_picture'] = 'تعذّر حفظ الصورة على الخادم. يرجى المحاولة مرة أخرى.';
         }
 
-        if ($saved) {
-            if ($newPicture !== null) {
-                delete_profile_picture($student['profile_picture']);   // remove the replaced picture
+        if ($err == "") {
+            $stmt = mysqli_prepare($conn, "UPDATE students SET name = ?, email = ?, phone = ?, address = ?, profile_picture = ? WHERE id = ?");
+            mysqli_stmt_bind_param($stmt, "sssssi", $name, $email, $phone, $address, $profile_pic_path, $id);
+
+            if (mysqli_stmt_execute($stmt)) {
+                mysqli_stmt_close($stmt);
+                header("Location: view_students.php?msg=updated");
+                exit();
+            } else {
+                $err = "فشل التحديث: " . mysqli_error($conn);
+                mysqli_stmt_close($stmt);
             }
-            set_flash('success', 'تم تحديث بيانات الطالب «' . $values['name'] . '» بنجاح.');
-            redirect(list_url($state));
         }
     }
 }
-
-render_header('تعديل بيانات الطالب');
-render_navbar('students');
 ?>
-<main class="container py-4 py-md-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-9 col-xl-8">
-            <div class="card content-card">
-                <div class="card-body p-4 p-md-5">
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تعديل بيانات طالب - نظام تسجيل الطلاب</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
-                    <div class="d-flex align-items-center gap-3 mb-4">
-                        <?= avatar_html($student['profile_picture'], 'avatar-lg') ?>
-                        <div>
-                            <h1 class="h3 fw-bold mb-1">تعديل بيانات الطالب</h1>
-                            <p class="text-muted mb-0">رقم السجل: <span class="bidi-ltr"><?= (int) $student['id'] ?></span></p>
-                        </div>
-                    </div>
-
-                    <?php if (isset($errors['general'])): ?>
-                        <div class="alert alert-danger" role="alert"><?= e($errors['general']) ?></div>
-                    <?php endif; ?>
-
-                    <?php
-                    render_student_form(
-                        action_url('update_student.php', $id, $state),
-                        $values,
-                        $errors,
-                        'حفظ التعديلات',
-                        list_url($state),
-                        $student
-                    );
-                    ?>
-
-                </div>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">نظام تسجيل الطلاب (BWP501)</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="index.html">الرئيسية</a></li>
+                    <li class="nav-item"><a class="nav-link" href="view_students.php">عرض الطلاب</a></li>
+                    <li class="nav-item"><a class="nav-link" href="add_student.php">إضافة طالب</a></li>
+                    <li class="nav-item"><a class="nav-link text-warning" href="logout.php">تسجيل الخروج (<?php echo htmlspecialchars($_SESSION['username']); ?>)</a></li>
+                </ul>
             </div>
         </div>
+    </nav>
+
+    <div class="container">
+        <div class="form-box" style="max-width: 650px;">
+            <h3 class="mb-4 text-center">تعديل بيانات الطالب</h3>
+
+            <?php if ($err != ""): ?>
+                <div class="alert alert-danger"><?php echo $err; ?></div>
+            <?php endif; ?>
+
+            <form action="update_student.php?id=<?php echo $student['id']; ?>" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="id" value="<?php echo $student['id']; ?>">
+
+                <div class="mb-3">
+                    <label for="name" class="form-label">الاسم الكامل *</label>
+                    <input type="text" class="form-control" id="name" name="name" value="<?php echo htmlspecialchars($student['name']); ?>" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="email" class="form-label">البريد الإلكتروني *</label>
+                    <input type="email" class="form-control" id="email" name="email" value="<?php echo htmlspecialchars($student['email']); ?>" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="phone" class="form-label">رقم الهاتف *</label>
+                    <input type="text" class="form-control" id="phone" name="phone" value="<?php echo htmlspecialchars($student['phone']); ?>" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="address" class="form-label">العنوان *</label>
+                    <textarea class="form-control" id="address" name="address" rows="3" required><?php echo htmlspecialchars($student['address']); ?></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">الصورة الشخصية الحالية</label>
+                    <div>
+                        <?php if (!empty($student['profile_picture']) && file_exists($student['profile_picture'])): ?>
+                            <img src="<?php echo htmlspecialchars($student['profile_picture']); ?>" alt="صورة الطالب" class="student-img mb-2">
+                        <?php else: ?>
+                            <p class="text-muted small">لا توجد صورة شخصية مرفوعة.</p>
+                        <?php endif; ?>
+                    </div>
+                    <label for="profile_picture" class="form-label">رفع صورة جديدة (اتركه فارغاً للاحتفاظ بالصورة الحالية)</label>
+                    <input type="file" class="form-control" id="profile_picture" name="profile_picture" accept="image/*">
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="view_students.php" class="btn btn-secondary">إلغاء</a>
+                    <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+                </div>
+            </form>
+        </div>
     </div>
-</main>
-<?php render_footer(); ?>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
